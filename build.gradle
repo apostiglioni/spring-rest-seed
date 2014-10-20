@@ -1,0 +1,101 @@
+buildscript {
+  repositories {
+    mavenCentral()
+  }
+  dependencies {
+    classpath("org.springframework.boot:spring-boot-gradle-plugin:1.1.7.RELEASE")
+  }
+}
+
+apply plugin: 'java'
+apply plugin: 'eclipse'
+apply plugin: 'spring-boot'
+apply from: 'buildSrc/jacoco-coverage.gradle'
+
+apply plugin: 'pmd'
+pmd {
+  ruleSetFiles = files("buildSrc/config/pmd/pmd.xml")
+}
+
+apply plugin: 'checkstyle' 
+//http://www.gradle.org/docs/current/userguide/checkstyle_plugin.html
+checkstyle {
+  toolVersion = '5.7'
+  configFile = file('buildSrc/config/checkstyle/checkstyle-5.7.xml')
+}
+
+apply plugin: 'findbugs'
+findbugs {
+  toolVersion = '3.0.0'
+  //includeFilter = file("build-config/findbugs/includeFilter.xml")
+}
+findbugsMain {
+  reports {
+    xml.enabled = false
+    html.enabled = true
+  }
+}
+findbugsTest {
+  reports {
+    xml.enabled = false
+    html.enabled = true
+  }
+}
+
+// Add provided dependency scope
+configurations {
+  provided {
+    dependencies.all { dep ->
+      configurations.default.exclude group: dep.group, module: dep.name
+    }
+  }
+  compile.extendsFrom provided
+}
+
+jar {
+  baseName = 'agile-podmaster'
+  version =  '0.1'
+}
+
+repositories {
+  mavenCentral()
+}
+
+dependencies {
+  provided("org.projectlombok:lombok:1.14.8")
+
+  compile("org.springframework.boot:spring-boot-starter-data-jpa")
+  compile("org.springframework.hateoas:spring-hateoas")
+  compile("org.springframework.boot:spring-boot-starter-data-rest")
+  compile("org.springframework.data:spring-data-rest-webmvc:2.2.0.RELEASE") //override default version
+    
+  // tag::jetty[]
+  compile("org.springframework.boot:spring-boot-starter-web") {
+    exclude module: "spring-boot-starter-tomcat"
+  }
+  compile("org.springframework.boot:spring-boot-starter-jetty")
+  // end::jetty[]
+
+  // tag::actuator[]
+  compile("org.springframework.boot:spring-boot-starter-actuator")
+  // end::actuator[]
+
+  runtime("org.liquibase:liquibase-core")
+
+  testCompile("junit:junit")
+  testCompile("org.springframework.boot:spring-boot-starter-test")
+  
+  runtime("org.hsqldb:hsqldb")
+}
+
+task coverageCheck(type: JacocoCoverageCheck) {
+  lineThreshold = 0.78
+  branchThreshold = 0.11
+  instructionThreshold = 0.39
+  
+  reportTask = jacocoTestAllReport
+} 
+check.dependsOn coverageCheck
+
+distZip.dependsOn check
+distTar.dependsOn check
